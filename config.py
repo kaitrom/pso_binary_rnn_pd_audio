@@ -60,3 +60,6 @@ MONITORING_CONFIG = {
     'verbose': True
 }
 
+# Configurações de População Inicial
+POPULACAO_INICIAL_CSV = True  
+CSV_POPULACAO_INICIAL = 'populacao_inicial.csv'# Caminho para o CSV com a população inicial

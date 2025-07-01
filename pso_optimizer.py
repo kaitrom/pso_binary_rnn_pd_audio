@@ -3,6 +3,7 @@ Otimizador PSO principal para otimização de hiperparâmetros da rede neural
 """
 
 import numpy as np
+import pandas as pd
 import time
 import psutil
 import os
@@ -67,38 +68,69 @@ class PSOOptimizer:
     def _initialize_swarm(self, random_state=None):
         """
         Inicializa o enxame de partículas
-        
+
+        Se um CSV for fornecido, carrega as posições iniciais dele.
+        Caso contrário, inicializa aleatoriamente.
+
         Args:
-            random_state: Seed para reprodutibilidade
-            
+            random_state (int): Seed para reprodutibilidade.
+        
+        Configurações:
+            config.POPULACAO_INICIAL_CSV (bool): Se True, usa CSV para população inicial.
+            config.CSV_POPULACAO_INICIAL (str): Caminho para o CSV de população inicial.
+
         Returns:
             dict: Dados do enxame inicializado
         """
         if random_state is not None:
             np.random.seed(random_state)
-        
-        # Inicializar posições aleatórias dentro dos limites
-        positions = np.random.uniform(
-            self.bounds_lower, 
-            self.bounds_upper, 
-            (self.n_particles, self.dimensions)
-        )
-        
+
+        if config.POPULACAO_INICIAL_CSV:
+            # Carregar CSV
+            df = pd.read_csv(config.CSV_POPULACAO_INICIAL)
+
+            # Garantir que tenha as colunas corretas
+            expected_cols = ["particula", "camadas", "n1", "n2", "n3", "LR"]
+            missing_cols = set(expected_cols) - set(df.columns)
+            if missing_cols:
+                raise ValueError(f"CSV missing columns: {missing_cols}")
+
+            # Converter LR para float (caso esteja como string)
+            df["LR"] = df["LR"].astype(float)
+
+            # Montar matriz de posições
+            positions = df[["camadas", "n1", "n2", "n3", "LR"]].values
+
+            # Checar se o número de partículas no CSV bate com o esperado
+            if positions.shape[0] != self.n_particles:
+                raise ValueError(
+                    f"CSV contém {positions.shape[0]} partículas, "
+                    f"mas o PSO está configurado para {self.n_particles} partículas."
+                )
+
+        else:
+            # Inicialização aleatória padrão
+            positions = np.random.uniform(
+                self.bounds_lower, 
+                self.bounds_upper, 
+                (self.n_particles, self.dimensions)
+            )
+
         # Inicializar velocidades
         velocities = np.random.uniform(
             -1, 1, 
             (self.n_particles, self.dimensions)
         )
-        
+
         # Inicializar melhores posições pessoais
         pbest_positions = positions.copy()
         pbest_fitness = np.full(self.n_particles, float('inf'))
-        
+
         # Melhor posição global
         gbest_position = None
         gbest_fitness = float('inf')
         gbest_particle_id = -1
-        
+
         return {
             'positions': positions,
             'velocities': velocities,
